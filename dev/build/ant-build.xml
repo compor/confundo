@@ -1,0 +1,97 @@
+<!-- ant build file used with ant v1.8.2 -->
+
+<!-- rename this file to the default expected name "build.xml" -->
+<!-- replace ProjectName and any other properties with your desired values -->
+
+<project name="ProjectName" basedir="." default="main">
+
+    <property name="src.dir" value="src"/>
+    <property name="src.test.dir" value="test"/>
+
+    <property name="lib.dir" value="../../lib/java"/>
+
+    <!-- e.g. for junit jar file -->
+    <property name="lib.test.dir" value="${lib.dir}/test"/>
+
+    <property name="build.dir" value="build"/>
+    <property name="build.test.dir" value="${build.dir}/test"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="classes.test.dir" value="${build.test.dir}/classes"/>
+    <property name="jar.dir" value="${build.dir}/jar"/>
+
+    <property name="main-class" value="ProjectName"/>
+
+	<path id="classpath.base">
+        <fileset dir="${lib.dir}" includes="**/*.jar"/>
+    </path>
+
+    <!--path id="jar.base">
+        <fileset dir="${jar.dir}" includes="**/*.jar"/>
+    </path-->
+
+    <path id="classpath.test">
+        <path refid="classpath.base"/>
+        <!--path refid="jar.base"/-->
+        <pathelement location="${classes.dir}"/>
+        <pathelement location="${lib.test.dir}"/>
+        <pathelement location="${classes.test.dir}"/>
+    </path>
+
+    <!-- -->
+
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+    </target>
+
+    <target name="clean-test">
+        <delete dir="${build.test.dir}"/>
+    </target>
+    
+    <target name="build">
+        <mkdir dir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath.base"/>
+    </target>
+
+    <target name="build-test" depends="build">
+        <mkdir dir="${classes.test.dir}"/>
+        <javac includeantruntime="false" srcdir="${src.test.dir}" destdir="${classes.test.dir}" classpathref="classpath.test"/>
+    </target>
+    
+    <target name="jar" depends="build">
+        <mkdir dir="${jar.dir}"/>
+        <jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="${classes.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="${main-class}"/>
+            </manifest>
+        </jar>
+    </target>
+    
+    <target name="run" depends="jar">
+        <java fork="true" classname="${main-class}">
+            <classpath>
+                <path refid="classpath.base"/>
+                <path location="${jar.dir}/${ant.project.name}.jar"/>
+            </classpath>
+
+            <!--arg value="${arg0}"/-->
+            <!--arg value="${arg1}"/-->
+        </java>
+
+        <!--<java jar="${jar.dir}/${ant.project.name}.jar" fork="true"/>-->
+    </target>
+
+    <target name="test" depends="build-test">
+        <junit>
+            <classpath refid="classpath.test"/>
+            <formatter type="brief" usefile="false"/>
+            <test name="TestProject"/>
+        </junit>
+    </target>
+
+    <target name="clean-build" depends="clean,jar"/>
+
+    <target name="clean-test-build" depends="clean-build,build-test"/>
+
+    <target name="main" depends="clean,run"/>
+
+</project>
