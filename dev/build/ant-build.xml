@@ -5,11 +5,21 @@
 
 <project name="ProjectName" basedir="." default="main">
 
+    <!-- used to dump build file properties -->
+    <!--echoproperties/-->
+
+    <!--echo message="java.home=${java.home}"/>
+    <echo message="java.runtime.version=${java.runtime.version}"/>
+    <echo message="java.specification.version=${java.specification.version}"/-->
+
+	<property name="main-class" value="ProjectName"/>
+
     <property name="src.dir" value="src"/>
     <property name="src.test.dir" value="test"/>
 
-    <property name="lib.dir" value="../../lib/java"/>
+	<property name="doc.dir" value="doc"/>
 
+    <property name="lib.dir" value="../../lib/java"/>
     <!-- e.g. for junit jar file -->
     <property name="lib.test.dir" value="${lib.dir}/test"/>
 
@@ -18,8 +28,6 @@
     <property name="classes.dir" value="${build.dir}/classes"/>
     <property name="classes.test.dir" value="${build.test.dir}/classes"/>
     <property name="jar.dir" value="${build.dir}/jar"/>
-
-    <property name="main-class" value="ProjectName"/>
 
 	<path id="classpath.base">
         <fileset dir="${lib.dir}" includes="**/*.jar"/>
@@ -41,20 +49,42 @@
 
     <target name="clean">
         <delete dir="${build.dir}"/>
+        <delete dir="${doc.dir}"/>
     </target>
 
     <target name="clean-test">
         <delete dir="${build.test.dir}"/>
     </target>
     
+    <target name="doc">
+        <mkdir dir="${doc.dir}"/>
+        <javadoc 
+            destdir="${doc.dir}" 
+            author="true" 
+            version="true" 
+            use="true"
+            docencoding="UTF-8"
+            charset="UTF-8">
+            <fileset dir="${src.dir}" includes="**/*.java"/>
+        </javadoc>
+    </target>
+
     <target name="build">
         <mkdir dir="${classes.dir}"/>
-        <javac includeantruntime="false" srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath.base"/>
+        <javac 
+            includeantruntime="false" 
+            srcdir="${src.dir}" 
+            destdir="${classes.dir}" 
+            classpathref="classpath.base"/>
     </target>
 
     <target name="build-test" depends="build">
         <mkdir dir="${classes.test.dir}"/>
-        <javac includeantruntime="false" srcdir="${src.test.dir}" destdir="${classes.test.dir}" classpathref="classpath.test"/>
+        <javac
+            includeantruntime="false" 
+            srcdir="${src.test.dir}" 
+            destdir="${classes.test.dir}" 
+            classpathref="classpath.test"/>
     </target>
     
     <target name="jar" depends="build">
@@ -70,7 +100,8 @@
         <java fork="true" classname="${main-class}">
             <classpath>
                 <path refid="classpath.base"/>
-                <path location="${jar.dir}/${ant.project.name}.jar"/>
+                <path location="${jar.dir}"/> <!-- to be tested if it can obsolete the below stmt -->
+                <!--path location="${jar.dir}/${ant.project.name}.jar"/-->
             </classpath>
 
             <!--arg value="${arg0}"/-->
