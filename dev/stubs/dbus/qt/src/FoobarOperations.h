@@ -9,7 +9,7 @@
 class FoobarOperations : public QObject
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "com.intralot.FoobarOperations");
+    Q_CLASSINFO("D-Bus Interface", "com.example.FoobarOperations");
 
 public:
     FoobarOperations(QObject *parent = 0) : QObject(parent) { return; };
