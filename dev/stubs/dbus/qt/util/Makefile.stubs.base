@@ -1,0 +1,144 @@
+# Makefile
+
+# command-line tools
+
+MV = mv
+RM = rm
+AWK = awk
+GREP = grep
+MKDIR = mkdir -p
+
+DBUS_CPP2XML = qdbuscpp2xml
+DBUS_XML2CPP = qdbusxml2cpp
+
+# input files and dirs
+
+# not sued here, since they are provided
+# by each makefile that includes this one
+
+#SRC_DIR = .
+#SERVICE_SPEC = FoobarOperations.h
+
+
+# extra checks just to make sure
+
+ifndef SRC_DIR
+  $(error source dir SRC_DIR not specified)
+endif
+
+ifndef SERVICE_SPEC
+  $(error service spec SERVICE_SPEC not specified)
+endif
+
+
+# output dirs
+
+SCHEMA_DIR = schema
+ADAPTOR_DIR = adaptor
+INTERFACE_DIR = interface
+
+VPATH = $(SRC_DIR):$(SCHEMA_DIR):$(ADAPTOR_DIR):$(INTERFACE_DIR)
+
+
+define get-service-fqdn
+	$(shell $(GREP) Q_CLASSINFO $1 | $(AWK) 'BEGIN{ FS="," } { gsub(/\ /,""); split($$2,a,"\""); lol=a[2]; print lol; }')
+endef
+
+define get-service-name
+	$(shell echo $1 | $(AWK) 'BEGIN{ FS="." } { gsub(/\ /,"",$$NF); print $$NF; }')
+endef
+
+define get-service-namespace
+	$(shell echo $1 | $(AWK) 'BEGIN{ FS="." } { lol=$$1; for(i=2; i<NF; i++) { lol=lol"."$$i; }; gsub(/\ /, "",lol); print lol; }')
+endef
+
+define move-files
+	$(MKDIR) $1
+	$(MV) $@ $1
+endef
+
+
+SERVICE_FQDN = $(strip $(call get-service-fqdn,$(SRC_DIR)/$(SERVICE_SPEC)))
+SERVICE_NAME = $(strip $(call get-service-name,$(SERVICE_FQDN)))
+SERVICE_NAMESPACE = $(strip $(call get-service-namespace,$(SERVICE_FQDN)))
+
+
+
+# this constraint is only imposed by us in order to follow clear naming conventions
+# it might be stupid to apply such a constraint - haven't decided yet
+
+GENERATED_SERVICE_SPEC = $(SERVICE_NAME).h
+
+ifneq "$(GENERATED_SERVICE_SPEC)" "$(SERVICE_SPEC)"
+  $(error service spec file name: $(SERVICE_SPEC) does not match service name $(SERVICE_NAME))
+endif
+
+
+
+SCHEMA_XML = $(SERVICE_FQDN).xml
+
+ADAPTOR_HDR = $(SERVICE_NAME)_adaptor.h
+ADAPTOR_SRC = $(SERVICE_NAME)_adaptor.cpp
+INTERFACE_HDR = $(SERVICE_NAME)_interface.h
+INTERFACE_SRC = $(SERVICE_NAME)_interface.cpp
+
+
+.PHONY: all clean print schema adaptor interface
+
+
+all: schema adaptor interface
+
+
+print:
+	@echo "\n### input ###\n"
+	@echo "source dir: \""$(SRC_DIR)"\""
+	@echo "dbus service spec: \""$(SERVICE_SPEC)"\""
+	@echo "\n### output ###\n"
+	@echo "dbus schema dir: "$(SCHEMA_DIR)
+	@echo "dbus interface dir: "$(INTERFACE_DIR)
+	@echo "dbus adaptor dir: "$(ADAPTOR_DIR)
+	@echo "dbus service fqdn: \""$(SERVICE_FQDN)"\""
+	@echo "dbus service name: "$(SERVICE_NAME)
+	@echo "dbus service namespace: "$(SERVICE_NAMESPACE)
+	@echo "\n"
+
+
+schema: $(SCHEMA_XML)
+
+$(SCHEMA_XML): $(SERVICE_SPEC)
+	@echo "\ngenerating schema"
+	$(DBUS_CPP2XML) -M -P -S $< -o $@
+	$(call move-files,$(SCHEMA_DIR))
+
+
+adaptor: $(ADAPTOR_SRC) 
+
+$(ADAPTOR_SRC): $(ADAPTOR_HDR)
+	@echo "\ngenerating adaptor sources"
+	${DBUS_XML2CPP} -i $(ADAPTOR_DIR)/${ADAPTOR_HDR} -a :$@ $(SCHEMA_DIR)/${SCHEMA_XML}
+	$(call move-files,$(ADAPTOR_DIR))
+
+$(ADAPTOR_HDR): $(SCHEMA_XML)
+	@echo "\ngenerating adaptor headers"
+	$(DBUS_XML2CPP) -a $@: $(SCHEMA_DIR)/$(SCHEMA_XML)
+	$(call move-files,$(ADAPTOR_DIR))
+
+
+interface: $(INTERFACE_SRC)
+
+$(INTERFACE_SRC): $(INTERFACE_HDR)
+	@echo "\ngenerating interface sources"
+	$(DBUS_XML2CPP) -i $(INTERFACE_DIR)/$(INTERFACE_HDR) -p :$@ $(SCHEMA_DIR)/$(SCHEMA_XML)
+	$(call move-files,$(INTERFACE_DIR))
+
+$(INTERFACE_HDR): $(SCHEMA_XML)
+	@echo "\ngenerating interface headers"
+	$(DBUS_XML2CPP) -p $@: $(SCHEMA_DIR)/$(SCHEMA_XML)
+	$(call move-files,$(INTERFACE_DIR))
+
+
+clean:
+	$(RM) -rf $(SCHEMA_DIR)
+	$(RM) -rf $(INTERFACE_DIR)
+	$(RM) -rf $(ADAPTOR_DIR)
+

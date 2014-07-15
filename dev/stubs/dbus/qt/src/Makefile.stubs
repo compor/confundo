@@ -1,0 +1,28 @@
+# Makefile
+
+# input files and dirs
+
+SRC_DIR = .
+SERVICE_SPEC = FoobarOperations.h
+
+
+# locate and include the base makefile
+
+MKFILE_CUR = $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
+MKFILE_SUF = $(suffix $(MKFILE_CUR))
+
+FILEPATH_LIST = $(subst /, ,$(basename $(MKFILE_CUR)))
+MKFILE_BASENAME = $(word $(words $(FILEPATH_LIST)),$(FILEPATH_LIST))
+
+$(info the current makefile is: $(MKFILE_CUR))
+$(info the current makefile basename is: $(MKFILE_BASENAME))
+$(info the current makefile suffix is: $(MKFILE_SUF))
+
+
+MKFILE_BASE = ../util/$(MKFILE_BASENAME)$(MKFILE_SUF).base
+
+$(info including base makefile: $(MKFILE_BASE))
+
+
+include $(MKFILE_BASE)
+
