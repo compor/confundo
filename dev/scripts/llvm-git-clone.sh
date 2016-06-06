@@ -50,6 +50,11 @@ git clone ${REPO}/llvm.git
 pushd llvm/tools
 git clone ${REPO}/clang.git
 git clone ${REPO}/lldb.git 
+git clone ${REPO}/polly.git
+popd
+
+pushd llvm/tools/clang/tools/
+git clone ${REPO}/clang-tools-extra.git extra
 popd
 
 pushd llvm/projects
