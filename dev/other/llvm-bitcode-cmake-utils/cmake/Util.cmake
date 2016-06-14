@@ -44,7 +44,7 @@ function(attach_bitcode_target BITCODE_TRGT TRGT)
   set(BCFILES "")
 
   foreach(SRC_FILE ${SRCS})
-    get_filename_component(OUTFILE ${SRC_FILE} NAME)
+    get_filename_component(OUTFILE ${SRC_FILE} NAME_WE)
     get_filename_component(INFILE ${SRC_FILE} ABSOLUTE)
     set(BCFILE "${OUTFILE}.bc")
     set(FULL_BCFILE "${BC_DIR}/${BCFILE}")
@@ -97,9 +97,9 @@ function(attach_opt_pass_target OPT_TRGT BITCODE_TRGT LIB_LOCATION
   get_property(INBCFILES TARGET ${BITCODE_TRGT} PROPERTY BITCODE_FILES)
 
   foreach(INBCFILE ${INBCFILES})
-    get_filename_component(OUTFILE ${INBCFILE} NAME)
+    get_filename_component(OUTFILE ${INBCFILE} NAME_WE)
     get_filename_component(INFILE ${INBCFILE} ABSOLUTE)
-    set(BCFILE "${OUTFILE}-${OPT_TRGT}")
+    set(BCFILE "${OUTFILE}-${OPT_TRGT}.bc")
     set(FULL_BCFILE "${BC_DIR}/${BCFILE}")
 
     # TODO add other flags
@@ -129,6 +129,46 @@ function(attach_opt_pass_target OPT_TRGT BITCODE_TRGT LIB_LOCATION
   set_target_properties(${OPT_TRGT} PROPERTIES BITCODE_FILES "${BCFILES}")
 
   add_dependencies(${BITCODE_TRGT} ${OPT_TRGT})
+endfunction()
+
+
+#
+
+function(attach_llvm_link_target OUT_TRGT BITCODE_TRGT)
+  set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${OUT_TRGT}")
+  file(MAKE_DIRECTORY "${BC_DIR}")
+
+  #set(CMDLINE_OPTION "-${CMDLINE_OPTION}")
+  set(CMDLINE_OPTION "")
+
+  get_property(INFILES TARGET ${BITCODE_TRGT} PROPERTY BITCODE_FILES)
+
+  set(BC_FILE "${BC_DIR}/${OUT_TRGT}.bc")
+  get_filename_component(BC_REL_FILE ${BC_FILE} NAME)
+
+  # TODO add other flags
+  add_custom_command(OUTPUT ${BC_FILE}
+    COMMAND llvm-link
+    ${CMDLINE_OPTION}
+    -o ${BC_FILE}
+    ${INFILES}
+    DEPENDS ${INFILES}
+    IMPLICIT_DEPENDS CXX ${INFILES}
+    COMMENT "Linking LLVM bitcode ${BC_REL_FILE}"
+    VERBATIM)
+
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES 
+    ${BC_FILE})
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${BCDIR})
+
+
+  # setup custom target
+
+  add_custom_target(${OUT_TRGT} DEPENDS "${BC_FILE}")
+
+  set_target_properties(${OUT_TRGT} PROPERTIES BITCODE_FILES "${BC_FILE}")
+
+  add_dependencies(${BITCODE_TRGT} ${OUT_TRGT})
 endfunction()
 
 
