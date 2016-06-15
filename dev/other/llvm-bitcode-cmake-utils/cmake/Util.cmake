@@ -57,7 +57,8 @@ function(attach_bitcode_target OUT_TRGT IN_TRGT)
 
   ## postamble
   # clean up
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${BC_DIR})
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+    ${FULL_OUT_BC_FILES})
 
   # setup custom target
   add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_BC_FILES}")
@@ -115,7 +116,8 @@ function(attach_opt_pass_target OUT_TRGT IN_TRGT CMDLINE_OPTION
   ## postamble
 
   # clean up
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${BC_DIR})
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+    ${FULL_OUT_BC_FILES})
 
   # setup custom target
   add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_BC_FILES}")
@@ -167,7 +169,8 @@ function(attach_llvm_link_target OUT_TRGT IN_TRGT)
 
   ## postamble
   # clean up
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${BC_DIR})
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+    ${FULL_OUT_BC_FILES})
 
   # setup custom target
   add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_BC_FILES}")
