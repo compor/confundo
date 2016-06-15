@@ -134,34 +134,36 @@ function(attach_llvm_link_target OUT_TRGT IN_TRGT)
   set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${OUT_TRGT}")
   file(MAKE_DIRECTORY "${BC_DIR}")
 
+  set(OUT_BC_FILES "")
+  set(FULL_OUT_BC_FILES "")
   get_property(INFILES TARGET ${IN_TRGT} PROPERTY BITCODE_FILES)
   get_property(IN_BC_DIR TARGET ${IN_TRGT} PROPERTY BITCODE_DIR)
-  set(FULL_OUT_BC_FILES "")
 
   set(IN_FULL_BC_FILES "")
   foreach(IN_BC_FILE ${INFILES})
     list(APPEND IN_FULL_BC_FILES "${IN_BC_DIR}/${IN_BC_FILE}")
   endforeach()
 
-  set(OUT_BC_FILE "${BC_DIR}/${OUT_TRGT}.bc")
-  get_filename_component(OUT_BC_REL_FILE ${OUT_BC_FILE} NAME)
+  set(FULL_OUT_BC_FILE "${BC_DIR}/${OUT_TRGT}.bc")
+  get_filename_component(OUT_BC_FILE ${FULL_OUT_BC_FILE} NAME)
 
   ## command options
   #set(CMDLINE_OPTION "-${CMDLINE_OPTION}")
   set(CMDLINE_OPTION "")
 
   ## main action
-  add_custom_command(OUTPUT ${OUT_BC_FILE}
+  add_custom_command(OUTPUT ${FULL_OUT_BC_FILE}
     COMMAND llvm-link
     ${CMDLINE_OPTION}
-    -o ${OUT_BC_FILE}
+    -o ${FULL_OUT_BC_FILE}
     ${IN_FULL_BC_FILES}
     DEPENDS ${IN_FULL_BC_FILES}
     IMPLICIT_DEPENDS CXX ${IN_FULL_BC_FILES}
-    COMMENT "Linking LLVM bitcode ${OUT_BC_REL_FILE}"
+    COMMENT "Linking LLVM bitcode ${OUT_BC_FILE}"
     VERBATIM)
 
-  list(APPEND FULL_OUT_BC_FILES ${OUT_BC_FILE})
+  list(APPEND OUT_BC_FILES ${OUT_BC_FILE})
+  list(APPEND FULL_OUT_BC_FILES ${FULL_OUT_BC_FILE})
 
   ## postamble
   # clean up
