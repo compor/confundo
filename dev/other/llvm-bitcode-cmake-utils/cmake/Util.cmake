@@ -1,85 +1,111 @@
 # LLVM cmake utils
 
-function(attach_bitcode_target OUT_TRGT IN_TRGT)
+
+macro(DetectLLVMIRTools)
+  set(LLVMIR_COMPILER "")
+  set(LLVMIR_OPT "opt")
+  set(LLVMIR_LINK "llvm-link")
+  set(LLVMIR_DIR "llvm-ir")
+endmacro()
+
+DetectLLVMIRTools()
+
+#
+
+function(attach_llvmir_target OUT_TRGT IN_TRGT)
   ## preamble
-  set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${OUT_TRGT}")
+  set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LLVMIR_DIR}/${OUT_TRGT}")
   file(MAKE_DIRECTORY "${BC_DIR}")
 
-  set(OUT_BC_FILES "")
-  set(FULL_OUT_BC_FILES "")
+  set(OUT_LLVMIR_FILES "")
+  set(FULL_OUT_LLVMIR_FILES "")
   get_property(IN_FILES TARGET ${IN_TRGT} PROPERTY SOURCES)
+  get_property(LINKER_LANGUAGE TARGET ${IN_TRGT} PROPERTY LINKER_LANGUAGE)
+
+  if("${LINKER_LANGUAGE}" STREQUAL "")
+    message(ERROR "linker language for target ${IN_TRGT} must be set.")
+  endif()
+
+  if("${LLVMIR_COMPILER}" STREQUAL "")
+    set(LLVMIR_COMPILER ${CMAKE_${LINKER_LANGUAGE}_COMPILER})
+  endif()
 
   ## command options
   set(SRC_DEFS "")
   get_property(CMPL_DEFINITIONS TARGET ${IN_TRGT} PROPERTY COMPILE_DEFINITIONS)
   foreach(DEFINITION ${CMPL_DEFINITIONS})
-    list(APPEND SRC_DEFS -D${DEFINITION})
+    list(APPEND SRC_DEFS "-D${DEFINITION}")
   endforeach()
-
-  #set(SRCFLAGS "")
-  #if(${srcfile} MATCHES "(.*).cpp")
-    #separate_arguments(srcflags UNIX_COMMAND ${CMAKE_CXX_FLAGS})
-    #set(src_bc_compiler ${LLVM_BC_CXX_COMPILER})
-  #else()
-    #separate_arguments(srcflags UNIX_COMMAND ${CMAKE_C_FLAGS})
-    #set(src_bc_compiler ${LLVM_BC_C_COMPILER} )
-  #endif()
 
   set(SRC_INCLUDES "")
   get_property(INC_DIRS TARGET ${IN_TRGT} PROPERTY INCLUDE_DIRECTORIES)
   foreach(DIRECTORY ${INC_DIRS})
-    list(APPEND SRC_INCLUDES -I${DIRECTORY})
+    list(APPEND SRC_INCLUDES "-I${DIRECTORY}")
   endforeach()
 
-  set(SRC_COMPILE_FLAGS "")
-  get_property(SRC_COMPILE_FLAGS TARGET ${IN_TRGT} PROPERTY COMPILE_FLAGS)
+  set(SRC_COMPILE_OPTIONS "")
+  get_property(SRC_COMPILE_OPTIONS TARGET ${IN_TRGT} PROPERTY COMPILE_OPTIONS)
+
+  set(SRC_LANG_FLAGS_TMP ${CMAKE_${LINKER_LANGUAGE}_FLAGS_${CMAKE_BUILD_TYPE}})
+  if("${SRC_LANG_FLAGS_TMP}" STREQUAL "")
+    set(SRC_LANG_FLAGS_TMP ${CMAKE_${LINKER_LANGUAGE}_FLAGS})
+  endif()
+  string(REPLACE " " ";" SRC_LANG_FLAGS ${SRC_LANG_FLAGS_TMP})
+
+  set(CMD_ARGS -emit-llvm ${SRC_LANG_FLAGS} ${SRC_COMPILE_OPTIONS} ${SRC_DEFS} 
+    ${SRC_INCLUDES} )
 
   ## main action
   foreach(IN_FILE ${IN_FILES})
     get_filename_component(OUTFILE ${IN_FILE} NAME_WE)
     get_filename_component(INFILE ${IN_FILE} ABSOLUTE)
-    set(OUT_BC_FILE "${OUTFILE}.bc")
-    set(FULL_OUT_BC_FILE "${BC_DIR}/${OUT_BC_FILE}")
+    set(OUT_LLVMIR_FILE "${OUTFILE}.bc")
+    set(FULL_OUT_LLVMIR_FILE "${BC_DIR}/${OUT_LLVMIR_FILE}")
 
-    add_custom_command(OUTPUT ${FULL_OUT_BC_FILE}
-      COMMAND clang -emit-llvm
-      ${SRC_DEFS} ${SRC_COMPILE_FLAGS} ${SRC_INCLUDES}
-      -c ${INFILE}
-      -o ${FULL_OUT_BC_FILE}
+    add_custom_command(OUTPUT ${FULL_OUT_LLVMIR_FILE}
+      COMMAND ${LLVMIR_COMPILER} 
+      ARGS ${CMD_ARGS} -c ${INFILE} -o ${FULL_OUT_LLVMIR_FILE}
       DEPENDS ${INFILE}
-      IMPLICIT_DEPENDS CXX ${INFILE}
-      COMMENT "Building LLVM bitcode ${OUT_BC_FILE}"
+      IMPLICIT_DEPENDS ${LINKER_LANGUAGE} ${INFILE}
+      COMMENT "Building LLVM bitcode ${OUT_LLVMIR_FILE}"
       VERBATIM)
 
-    list(APPEND OUT_BC_FILES ${OUT_BC_FILE})
-    list(APPEND FULL_OUT_BC_FILES ${FULL_OUT_BC_FILE})
+    list(APPEND OUT_LLVMIR_FILES ${OUT_LLVMIR_FILE})
+    list(APPEND FULL_OUT_LLVMIR_FILES ${FULL_OUT_LLVMIR_FILE})
   endforeach()
 
   ## postamble
   # clean up
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    ${FULL_OUT_BC_FILES})
+    ${FULL_OUT_LLVMIR_FILES})
 
   # setup custom target
-  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_BC_FILES}")
+  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_LLVMIR_FILES}")
 
-  set_target_properties(${OUT_TRGT} PROPERTIES BITCODE_DIR "${BC_DIR}")
-  set_target_properties(${OUT_TRGT} PROPERTIES BITCODE_FILES "${OUT_BC_FILES}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LLVMIR_DIR "${BC_DIR}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LLVMIR_FILES "${OUT_LLVMIR_FILES}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LINKER_LANGUAGE
+    "${LINKER_LANGUAGE}")
 
-  add_dependencies(${IN_TRGT} ${OUT_TRGT})
+  add_dependencies(${OUT_TRGT} ${IN_TRGT})
 endfunction()
 
 
-function(attach_opt_pass_target OUT_TRGT IN_TRGT CMDLINE_OPTION 
+function(attach_llvmir_opt_pass_target OUT_TRGT IN_TRGT CMDLINE_OPTION 
     LIB_LOCATION)
   ## preamble
-  set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${OUT_TRGT}")
+  set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LLVMIR_DIR}/${OUT_TRGT}")
   file(MAKE_DIRECTORY "${BC_DIR}")
 
-  set(OUT_BC_FILES "")
-  set(FULL_OUT_BC_FILES "")
-  get_property(IN_BC_DIR TARGET ${IN_TRGT} PROPERTY BITCODE_DIR)
-  get_property(IN_BC_FILES TARGET ${IN_TRGT} PROPERTY BITCODE_FILES)
+  set(OUT_LLVMIR_FILES "")
+  set(FULL_OUT_LLVMIR_FILES "")
+  get_property(IN_LLVMIR_DIR TARGET ${IN_TRGT} PROPERTY LLVMIR_DIR)
+  get_property(IN_LLVMIR_FILES TARGET ${IN_TRGT} PROPERTY LLVMIR_FILES)
+  get_property(LINKER_LANGUAGE TARGET ${IN_TRGT} PROPERTY LINKER_LANGUAGE)
+
+  if("${LINKER_LANGUAGE}" STREQUAL "")
+    message(ERROR "linker language for target ${IN_TRGT} must be set.")
+  endif()
 
   ## command options
   set(LIB_OPTION "")
@@ -91,94 +117,166 @@ function(attach_opt_pass_target OUT_TRGT IN_TRGT CMDLINE_OPTION
   # TODO other opt options for debug
   set(OPT_PASS_OPTIONS "")
 
-  foreach(IN_BC_FILE ${IN_BC_FILES})
-    get_filename_component(OUTFILE ${IN_BC_FILE} NAME_WE)
-    set(INFILE "${IN_BC_DIR}/${IN_BC_FILE}")
-    set(OUT_BC_FILE "${OUTFILE}-${OUT_TRGT}.bc")
-    set(FULL_OUT_BC_FILE "${BC_DIR}/${OUT_BC_FILE}")
+  foreach(IN_LLVMIR_FILE ${IN_LLVMIR_FILES})
+    get_filename_component(OUTFILE ${IN_LLVMIR_FILE} NAME_WE)
+    set(INFILE "${IN_LLVMIR_DIR}/${IN_LLVMIR_FILE}")
+    set(OUT_LLVMIR_FILE "${OUTFILE}-${OUT_TRGT}.bc")
+    set(FULL_OUT_LLVMIR_FILE "${BC_DIR}/${OUT_LLVMIR_FILE}")
 
     ## main action
-    add_custom_command(OUTPUT ${FULL_OUT_BC_FILE}
-      COMMAND opt
+    add_custom_command(OUTPUT ${FULL_OUT_LLVMIR_FILE}
+      COMMAND ${LLVMIR_OPT}
       ${LIB_OPTION}
       ${CMDLINE_OPTION}
       ${INFILE}
-      -o ${FULL_OUT_BC_FILE}
+      -o ${FULL_OUT_LLVMIR_FILE}
       DEPENDS ${INFILE}
-      IMPLICIT_DEPENDS CXX ${INFILE}
-      COMMENT "Building LLVM bitcode ${OUT_BC_FILE}"
+      IMPLICIT_DEPENDS ${LINKER_LANGUAGE} ${INFILE}
+      COMMENT "Building LLVM bitcode ${OUT_LLVMIR_FILE}"
       VERBATIM)
 
-    list(APPEND OUT_BC_FILES ${OUT_BC_FILE})
-    list(APPEND FULL_OUT_BC_FILES ${FULL_OUT_BC_FILE})
+    list(APPEND OUT_LLVMIR_FILES ${OUT_LLVMIR_FILE})
+    list(APPEND FULL_OUT_LLVMIR_FILES ${FULL_OUT_LLVMIR_FILE})
   endforeach()
 
   ## postamble
 
   # clean up
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    ${FULL_OUT_BC_FILES})
+    ${FULL_OUT_LLVMIR_FILES})
 
   # setup custom target
-  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_BC_FILES}")
+  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_LLVMIR_FILES}")
 
-  set_target_properties(${OUT_TRGT} PROPERTIES BITCODE_DIR "${BC_DIR}")
-  set_target_properties(${OUT_TRGT} PROPERTIES BITCODE_FILES "${OUT_BC_FILES}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LLVMIR_DIR "${BC_DIR}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LLVMIR_FILES "${OUT_LLVMIR_FILES}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LINKER_LANGUAGE "${LINKER_LANGUAGE}")
 
-  add_dependencies(${IN_TRGT} ${OUT_TRGT})
+  add_dependencies(${OUT_TRGT} ${IN_TRGT})
 endfunction()
 
 
 #
 
-function(attach_llvm_link_target OUT_TRGT IN_TRGT)
+function(attach_llvmir_link_target OUT_TRGT IN_TRGT)
   ## preamble
-  set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${OUT_TRGT}")
+  set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LLVMIR_DIR}/${OUT_TRGT}")
   file(MAKE_DIRECTORY "${BC_DIR}")
 
-  set(OUT_BC_FILES "")
-  set(FULL_OUT_BC_FILES "")
-  get_property(INFILES TARGET ${IN_TRGT} PROPERTY BITCODE_FILES)
-  get_property(IN_BC_DIR TARGET ${IN_TRGT} PROPERTY BITCODE_DIR)
+  set(OUT_LLVMIR_FILES "")
+  set(FULL_OUT_LLVMIR_FILES "")
+  get_property(INFILES TARGET ${IN_TRGT} PROPERTY LLVMIR_FILES)
+  get_property(IN_LLVMIR_DIR TARGET ${IN_TRGT} PROPERTY LLVMIR_DIR)
+  get_property(LINKER_LANGUAGE TARGET ${IN_TRGT} PROPERTY LINKER_LANGUAGE)
 
-  set(IN_FULL_BC_FILES "")
-  foreach(IN_BC_FILE ${INFILES})
-    list(APPEND IN_FULL_BC_FILES "${IN_BC_DIR}/${IN_BC_FILE}")
+  if("${LINKER_LANGUAGE}" STREQUAL "")
+    message(ERROR "linker language for target ${IN_TRGT} must be set.")
+  endif()
+
+  set(IN_FULL_LLVMIR_FILES "")
+  foreach(IN_LLVMIR_FILE ${INFILES})
+    list(APPEND IN_FULL_LLVMIR_FILES "${IN_LLVMIR_DIR}/${IN_LLVMIR_FILE}")
   endforeach()
 
-  set(FULL_OUT_BC_FILE "${BC_DIR}/${OUT_TRGT}.bc")
-  get_filename_component(OUT_BC_FILE ${FULL_OUT_BC_FILE} NAME)
+  set(FULL_OUT_LLVMIR_FILE "${BC_DIR}/${OUT_TRGT}.bc")
+  get_filename_component(OUT_LLVMIR_FILE ${FULL_OUT_LLVMIR_FILE} NAME)
 
   ## command options
   #set(CMDLINE_OPTION "-${CMDLINE_OPTION}")
   set(CMDLINE_OPTION "")
 
+  list(APPEND OUT_LLVMIR_FILES ${OUT_LLVMIR_FILE})
+  list(APPEND FULL_OUT_LLVMIR_FILES ${FULL_OUT_LLVMIR_FILE})
+
+  # setup custom target
+  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_LLVMIR_FILES}")
+
+  set_target_properties(${OUT_TRGT} PROPERTIES LLVMIR_DIR "${BC_DIR}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LLVMIR_FILES "${OUT_LLVMIR_FILES}")
+  set_target_properties(${OUT_TRGT} PROPERTIES LINKER_LANGUAGE "${LINKER_LANGUAGE}")
+
+  add_dependencies(${OUT_TRGT} ${IN_TRGT})
+
   ## main action
-  add_custom_command(OUTPUT ${FULL_OUT_BC_FILE}
+  add_custom_command(OUTPUT ${FULL_OUT_LLVMIR_FILE}
     COMMAND llvm-link
     ${CMDLINE_OPTION}
-    -o ${FULL_OUT_BC_FILE}
-    ${IN_FULL_BC_FILES}
-    DEPENDS ${IN_FULL_BC_FILES}
-    IMPLICIT_DEPENDS CXX ${IN_FULL_BC_FILES}
-    COMMENT "Linking LLVM bitcode ${OUT_BC_FILE}"
+    -o ${FULL_OUT_LLVMIR_FILE}
+    ${IN_FULL_LLVMIR_FILES}
+    DEPENDS ${IN_FULL_LLVMIR_FILES}
+    IMPLICIT_DEPENDS ${LINKER_LANGUAGE} ${IN_FULL_LLVMIR_FILES}
+    COMMENT "Linking LLVM bitcode ${OUT_LLVMIR_FILE}"
     VERBATIM)
-
-  list(APPEND OUT_BC_FILES ${OUT_BC_FILE})
-  list(APPEND FULL_OUT_BC_FILES ${FULL_OUT_BC_FILE})
 
   ## postamble
   # clean up
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    ${FULL_OUT_BC_FILES})
-
-  # setup custom target
-  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_BC_FILES}")
-
-  set_target_properties(${OUT_TRGT} PROPERTIES BITCODE_DIR "${BC_DIR}")
-  set_target_properties(${OUT_TRGT} PROPERTIES BITCODE_FILES "${OUT_BC_FILES}")
-
-  add_dependencies(${IN_TRGT} ${OUT_TRGT})
+    ${FULL_OUT_LLVMIR_FILES})
 endfunction()
 
+
+function(add_llvmir_executable OUT_TRGT IN_TRGT)
+  ## preamble
+  set(OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LLVMIR_DIR}/${OUT_TRGT}")
+  file(MAKE_DIRECTORY "${OUT_DIR}")
+
+  get_property(INFILES TARGET ${IN_TRGT} PROPERTY LLVMIR_FILES)
+  get_property(IN_LLVMIR_DIR TARGET ${IN_TRGT} PROPERTY LLVMIR_DIR)
+  get_property(LINKER_LANGUAGE TARGET ${IN_TRGT} PROPERTY LINKER_LANGUAGE)
+
+  if("${LINKER_LANGUAGE}" STREQUAL "")
+    message(ERROR "linker language for target ${IN_TRGT} must be set.")
+  endif()
+
+  set(IN_FULL_LLVMIR_FILES "")
+  foreach(IN_LLVMIR_FILE ${INFILES})
+    list(APPEND IN_FULL_LLVMIR_FILES "${IN_LLVMIR_DIR}/${IN_LLVMIR_FILE}")
+  endforeach()
+
+  add_executable(${OUT_TRGT} "${ARGN}" "${IN_FULL_LLVMIR_FILES}")
+
+  set_property(TARGET ${OUT_TRGT} PROPERTY LINKER_LANGUAGE ${LINKER_LANGUAGE})
+  set_property(TARGET ${OUT_TRGT} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR})
+
+  foreach(IN_FULL_LLVMIR_FILE ${IN_FULL_LLVMIR_FILES})
+    set_property(SOURCE ${IN_FULL_LLVMIR_FILE} PROPERTY EXTERNAL_OBJECT TRUE)
+  endforeach()
+
+  add_dependencies(${OUT_TRGT} ${IN_TRGT})
+
+  ## postamble
+endfunction()
+
+
+function(add_llvmir_library OUT_TRGT IN_TRGT)
+  ## preamble
+  set(OUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LLVMIR_DIR}/${OUT_TRGT}")
+  file(MAKE_DIRECTORY "${OUT_DIR}")
+
+  get_property(INFILES TARGET ${IN_TRGT} PROPERTY LLVMIR_FILES)
+  get_property(IN_LLVMIR_DIR TARGET ${IN_TRGT} PROPERTY LLVMIR_DIR)
+  get_property(LINKER_LANGUAGE TARGET ${IN_TRGT} PROPERTY LINKER_LANGUAGE)
+
+  if("${LINKER_LANGUAGE}" STREQUAL "")
+    message(ERROR "linker language for target ${IN_TRGT} must be set.")
+  endif()
+
+  set(IN_FULL_LLVMIR_FILES "")
+  foreach(IN_LLVMIR_FILE ${INFILES})
+    list(APPEND IN_FULL_LLVMIR_FILES "${IN_LLVMIR_DIR}/${IN_LLVMIR_FILE}")
+  endforeach()
+
+  add_library(${OUT_TRGT} "${ARGN}" "${IN_FULL_LLVMIR_FILES}")
+
+  set_property(TARGET ${OUT_TRGT} PROPERTY LINKER_LANGUAGE ${LINKER_LANGUAGE})
+  set_property(TARGET ${OUT_TRGT} PROPERTY LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR})
+
+  foreach(IN_FULL_LLVMIR_FILE ${IN_FULL_LLVMIR_FILES})
+    set_property(SOURCE ${IN_FULL_LLVMIR_FILE} PROPERTY EXTERNAL_OBJECT TRUE)
+  endforeach()
+
+  add_dependencies(${OUT_TRGT} ${IN_TRGT})
+
+  ## postamble
+endfunction()
 

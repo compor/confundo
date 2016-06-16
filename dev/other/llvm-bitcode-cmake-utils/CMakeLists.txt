@@ -10,6 +10,5 @@ endif()
 message(STATUS ${CMAKE_MODULE_PATH})
 include(Util)
 
-
 add_subdirectory(src)
 
