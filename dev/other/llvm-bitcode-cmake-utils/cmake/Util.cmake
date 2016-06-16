@@ -91,8 +91,7 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
 endfunction()
 
 
-function(attach_llvmir_opt_pass_target OUT_TRGT IN_TRGT CMDLINE_OPTION 
-    LIB_LOCATION)
+function(attach_llvmir_opt_pass_target OUT_TRGT IN_TRGT)
   ## preamble
   set(BC_DIR "${CMAKE_CURRENT_BINARY_DIR}/${LLVMIR_DIR}/${OUT_TRGT}")
   file(MAKE_DIRECTORY "${BC_DIR}")
@@ -107,16 +106,6 @@ function(attach_llvmir_opt_pass_target OUT_TRGT IN_TRGT CMDLINE_OPTION
     message(ERROR "linker language for target ${IN_TRGT} must be set.")
   endif()
 
-  ## command options
-  set(LIB_OPTION "")
-  if(NOT ${LIB_LOCATION} STREQUAL "")
-    set(LIB_OPTION "-load ${LIB_LOCATION}")
-  endif()
-  set(CMDLINE_OPTION "-${CMDLINE_OPTION}")
-
-  # TODO other opt options for debug
-  set(OPT_PASS_OPTIONS "")
-
   foreach(IN_LLVMIR_FILE ${IN_LLVMIR_FILES})
     get_filename_component(OUTFILE ${IN_LLVMIR_FILE} NAME_WE)
     set(INFILE "${IN_LLVMIR_DIR}/${IN_LLVMIR_FILE}")
@@ -126,10 +115,7 @@ function(attach_llvmir_opt_pass_target OUT_TRGT IN_TRGT CMDLINE_OPTION
     ## main action
     add_custom_command(OUTPUT ${FULL_OUT_LLVMIR_FILE}
       COMMAND ${LLVMIR_OPT}
-      ${LIB_OPTION}
-      ${CMDLINE_OPTION}
-      ${INFILE}
-      -o ${FULL_OUT_LLVMIR_FILE}
+      ARGS ${LIB_OPTION} ${ARGN} ${INFILE} -o ${FULL_OUT_LLVMIR_FILE}
       DEPENDS ${INFILE}
       IMPLICIT_DEPENDS ${LINKER_LANGUAGE} ${INFILE}
       COMMENT "Building LLVM bitcode ${OUT_LLVMIR_FILE}"

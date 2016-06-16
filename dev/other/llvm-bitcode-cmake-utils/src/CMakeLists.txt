@@ -15,12 +15,12 @@ target_include_directories(qux
 
 attach_llvmir_target(qux_bc qux)
 
-attach_llvmir_opt_pass_target(qux_pass1 qux_bc "mem2reg" "")
-attach_llvmir_opt_pass_target(qux_pass2 qux_pass1 "simplifycfg" "")
+attach_llvmir_opt_pass_target(qux_pass1 qux_bc -mem2reg)
+attach_llvmir_opt_pass_target(qux_pass2 qux_pass1 -simplifycfg -licm)
 
 attach_llvmir_link_target(qux_llvmlink qux_pass2)
 
-attach_llvmir_opt_pass_target(qux_pass4 qux_llvmlink "simplifycfg" "")
+attach_llvmir_opt_pass_target(qux_pass4 qux_llvmlink -simplifycfg)
 
 add_llvmir_executable(qux_bc_exe qux_pass4)
 add_llvmir_executable(qux_bc_exe2 qux_pass2)
