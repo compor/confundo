@@ -21,7 +21,6 @@ target_include_directories(qux
 
 attach_llvmir_target(qux_bc qux)
 
-
 attach_llvmir_opt_pass_target(qux_pass1 qux_bc -mem2reg)
 attach_llvmir_opt_pass_target(qux_pass2 qux_pass1 -simplifycfg -licm)
 attach_llvmir_opt_pass_target(qux_pass3 qux_pass2 -licm)

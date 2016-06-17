@@ -104,11 +104,16 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
 
   # includes
   set(SRC_INCLUDES "")
+
   get_property(INC_DIRS TARGET ${IN_TRGT} PROPERTY INCLUDE_DIRECTORIES)
   foreach(DIR ${INC_DIRS})
     list(APPEND SRC_INCLUDES -I${DIR})
   endforeach()
 
+  get_property(INC_DIRS TARGET ${IN_TRGT} PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+  foreach(DIR ${INC_DIRS})
+    list(APPEND SRC_INCLUDES -I${DIR})
+  endforeach()
 
   ## main action
   foreach(IN_FILE ${IN_FILES})
