@@ -91,8 +91,7 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
   set(SRC_COMPILE_OPTIONS "")
   get_property(SRC_COMPILE_OPTIONS TARGET ${IN_TRGT} PROPERTY COMPILE_OPTIONS)
 
-  # compile flags
-  # deprecated according to cmake docs
+  # compile lang flags
   set(SRC_LANG_FLAGS_TMP ${CMAKE_${LINKER_LANGUAGE}_FLAGS_${CMAKE_BUILD_TYPE}})
   if("${SRC_LANG_FLAGS_TMP}" STREQUAL "")
     set(SRC_LANG_FLAGS_TMP ${CMAKE_${LINKER_LANGUAGE}_FLAGS})
@@ -100,7 +99,15 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
 
   # this transforms the string to a list and gets rid of the double quotes
   # when assembling the command arguments
-  string(REPLACE " " ";" SRC_LANG_FLAGS ${SRC_LANG_FLAGS_TMP})
+  string(REPLACE " " ";" SRC_LANG_FLAGS "${SRC_LANG_FLAGS_TMP}")
+
+  # compile flags
+  # deprecated according to cmake docs
+  get_property(SRC_FLAGS_TMP TARGET ${IN_TRGT} PROPERTY COMPILE_FLAGS)
+
+  # this transforms the string to a list and gets rid of the double quotes
+  # when assembling the command arguments
+  string(REPLACE " " ";" SRC_FLAGS "${SRC_FLAGS_TMP}")
 
   # includes
   set(SRC_INCLUDES "")
@@ -138,9 +145,16 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
       list(APPEND SRC_FILE_DEFS -D${DEF})
     endforeach()
 
+    # compile flags per source file
+    get_property(SRC_FLAGS_TMP SOURCE ${INFILE} PROPERTY COMPILE_FLAGS)
+
+    # this transforms the string to a list and gets rid of the double quotes
+    # when assembling the command arguments
+    string(REPLACE " " ";" SRC_FILE_FLAGS "${SRC_FLAGS_TMP}")
+
     # stitch all args together
-    set(CMD_ARGS -emit-llvm ${SRC_LANG_FLAGS} ${SRC_COMPILE_OPTIONS}
-      ${SRC_FILE_DEFS} ${SRC_DEFS} ${SRC_INCLUDES})
+    set(CMD_ARGS -emit-llvm ${SRC_LANG_FLAGS} ${SRC_FLAGS} ${SRC_COMPILE_OPTIONS}
+      ${SRC_FILE_FLAGS} ${SRC_FILE_DEFS} ${SRC_DEFS} ${SRC_INCLUDES})
 
     add_custom_command(OUTPUT ${FULL_OUT_LLVMIR_FILE}
       COMMAND ${LLVMIR_COMPILER}
