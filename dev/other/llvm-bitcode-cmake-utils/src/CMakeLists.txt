@@ -1,9 +1,18 @@
+# cmake file
+
+# general defs
 
 set(SOURCES
   foo.cpp
   bar.cpp)
 
+
+# directory level
+
 add_definitions(-DDIR_FOO=1)
+
+
+# target level
 
 add_executable(qux ${SOURCES})
 
@@ -17,7 +26,7 @@ target_include_directories(qux
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 
 
-#
+# attachments on first target
 
 attach_llvmir_target(qux_bc qux)
 
@@ -36,4 +45,5 @@ attach_llvmir_executable(qux_bc_exe qux_pass4)
 attach_llvmir_executable(qux_bc_exe2 qux_pass2)
 
 attach_llvmir_library(qux_bc_lib qux_pass2 SHARED)
+
 
