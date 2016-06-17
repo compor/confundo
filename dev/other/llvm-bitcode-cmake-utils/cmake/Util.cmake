@@ -115,6 +115,8 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
     list(APPEND SRC_INCLUDES -I${DIR})
   endforeach()
 
+  list(REMOVE_DUPLICATES SRC_INCLUDES)
+
   ## main action
   foreach(IN_FILE ${IN_FILES})
     get_filename_component(OUTFILE ${IN_FILE} NAME_WE)
@@ -280,7 +282,7 @@ function(attach_llvmir_disassemble_target OUT_TRGT IN_TRGT)
     ${FULL_OUT_LLVMIR_FILES})
 
   # setup custom target
-  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_LLVMIR_FILES}")
+  add_custom_target(${OUT_TRGT} DEPENDS ${FULL_OUT_LLVMIR_FILES})
 
   set_property(TARGET ${OUT_TRGT} PROPERTY LLVMIR_TYPE ${OUT_LLVMIR_TYPE})
   set_property(TARGET ${OUT_TRGT} PROPERTY LLVMIR_DIR ${WORK_DIR})
@@ -341,7 +343,7 @@ function(attach_llvmir_assemble_target OUT_TRGT IN_TRGT)
     ${FULL_OUT_LLVMIR_FILES})
 
   # setup custom target
-  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_LLVMIR_FILES}")
+  add_custom_target(${OUT_TRGT} DEPENDS ${FULL_OUT_LLVMIR_FILES})
 
   set_property(TARGET ${OUT_TRGT} PROPERTY LLVMIR_TYPE ${OUT_LLVMIR_TYPE})
   set_property(TARGET ${OUT_TRGT} PROPERTY LLVMIR_DIR ${WORK_DIR})
@@ -389,7 +391,7 @@ function(attach_llvmir_link_target OUT_TRGT IN_TRGT)
   list(APPEND FULL_OUT_LLVMIR_FILES ${FULL_OUT_LLVMIR_FILE})
 
   # setup custom target
-  add_custom_target(${OUT_TRGT} DEPENDS "${FULL_OUT_LLVMIR_FILES}")
+  add_custom_target(${OUT_TRGT} DEPENDS ${FULL_OUT_LLVMIR_FILES})
 
   set_property(TARGET ${OUT_TRGT} PROPERTY LLVMIR_TYPE ${OUT_LLVMIR_TYPE})
   set_property(TARGET ${OUT_TRGT} PROPERTY LLVMIR_DIR ${WORK_DIR})
