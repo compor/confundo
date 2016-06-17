@@ -3,9 +3,15 @@ set(SOURCES
   foo.cpp
   bar.cpp)
 
+add_definitions(-DDIR_FOO=1)
 
 add_executable(qux ${SOURCES})
+
+# this property is required by our parasitic targets
 set_target_properties(qux PROPERTIES LINKER_LANGUAGE CXX)
+
+target_compile_definitions(qux PUBLIC TARGET_PUB_FOO=2)
+target_compile_definitions(qux INTERFACE TARGET_IF_FOO=3)
 
 target_include_directories(qux 
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")

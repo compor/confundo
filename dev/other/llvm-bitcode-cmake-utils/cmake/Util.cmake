@@ -51,21 +51,48 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
   endif()
 
   ## command options
+
+  # compile definitions
   set(SRC_DEFS "")
-  get_property(CMPL_DEFINITIONS TARGET ${IN_TRGT} PROPERTY COMPILE_DEFINITIONS)
-  foreach(DEFINITION ${CMPL_DEFINITIONS})
-    list(APPEND SRC_DEFS "-D${DEFINITION}")
+
+  # per directory
+  get_property(SRC_DEFS_TMP DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  foreach(DEF ${SRC_DEFS_TMP})
+    list(APPEND SRC_DEFS -D${DEF})
   endforeach()
 
-  set(SRC_INCLUDES "")
-  get_property(INC_DIRS TARGET ${IN_TRGT} PROPERTY INCLUDE_DIRECTORIES)
-  foreach(DIRECTORY ${INC_DIRS})
-    list(APPEND SRC_INCLUDES "-I${DIRECTORY}")
+  get_property(SRC_DEFS_TMP DIRECTORY PROPERTY
+    COMPILE_DEFINITIONS_${CMAKE_BUILD_TYPE})
+  foreach(DEF ${SRC_DEFS_TMP})
+    list(APPEND SRC_DEFS -D${DEF})
   endforeach()
 
+  # per target
+  get_property(SRC_DEFS_TMP TARGET ${IN_TRGT} PROPERTY COMPILE_DEFINITIONS)
+  foreach(DEF ${SRC_DEFS_TMP})
+    list(APPEND SRC_DEFS -D${DEF})
+  endforeach()
+
+  get_property(SRC_DEFS_TMP TARGET ${IN_TRGT} PROPERTY
+    COMPILE_DEFINITIONS_${CMAKE_BUILD_TYPE})
+  foreach(DEF ${SRC_DEFS_TMP})
+    list(APPEND SRC_DEFS -D${DEF})
+  endforeach()
+
+  get_property(SRC_DEFS_TMP TARGET ${IN_TRGT} PROPERTY
+    INTERFACE_COMPILE_DEFINITIONS)
+  foreach(DEF ${SRC_DEFS_TMP})
+    list(APPEND SRC_DEFS -D${DEF})
+  endforeach()
+
+  list(REMOVE_DUPLICATES SRC_DEFS)
+
+  # compile options
   set(SRC_COMPILE_OPTIONS "")
   get_property(SRC_COMPILE_OPTIONS TARGET ${IN_TRGT} PROPERTY COMPILE_OPTIONS)
 
+  # compile flags
+  # deprecated according to cmake docs
   set(SRC_LANG_FLAGS_TMP ${CMAKE_${LINKER_LANGUAGE}_FLAGS_${CMAKE_BUILD_TYPE}})
   if("${SRC_LANG_FLAGS_TMP}" STREQUAL "")
     set(SRC_LANG_FLAGS_TMP ${CMAKE_${LINKER_LANGUAGE}_FLAGS})
@@ -75,8 +102,13 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
   # when assembling the command arguments
   string(REPLACE " " ";" SRC_LANG_FLAGS ${SRC_LANG_FLAGS_TMP})
 
-  set(CMD_ARGS -emit-llvm ${SRC_LANG_FLAGS} ${SRC_COMPILE_OPTIONS} ${SRC_DEFS}
-    ${SRC_INCLUDES} )
+  # includes
+  set(SRC_INCLUDES "")
+  get_property(INC_DIRS TARGET ${IN_TRGT} PROPERTY INCLUDE_DIRECTORIES)
+  foreach(DIR ${INC_DIRS})
+    list(APPEND SRC_INCLUDES -I${DIR})
+  endforeach()
+
 
   ## main action
   foreach(IN_FILE ${IN_FILES})
@@ -85,12 +117,30 @@ function(attach_llvmir_target OUT_TRGT IN_TRGT)
     set(OUT_LLVMIR_FILE "${OUTFILE}.${OUT_LLVMIR_SUFFIX}")
     set(FULL_OUT_LLVMIR_FILE "${WORK_DIR}/${OUT_LLVMIR_FILE}")
 
+    # compile definitions per source file
+    set(SRC_FILE_DEFS "")
+
+    get_property(SRC_DEFS_TMP SOURCE ${INFILE} PROPERTY COMPILE_DEFINITIONS)
+    foreach(DEF ${SRC_DEFS_TMP})
+      list(APPEND SRC_FILE_DEFS -D${DEF})
+    endforeach()
+
+    get_property(SRC_DEFS_TMP SOURCE ${IN_TRGT} PROPERTY
+      COMPILE_DEFINITIONS_${CMAKE_BUILD_TYPE})
+    foreach(DEF ${SRC_DEFS_TMP})
+      list(APPEND SRC_FILE_DEFS -D${DEF})
+    endforeach()
+
+    # stitch all args together
+    set(CMD_ARGS -emit-llvm ${SRC_LANG_FLAGS} ${SRC_COMPILE_OPTIONS}
+      ${SRC_FILE_DEFS} ${SRC_DEFS} ${SRC_INCLUDES})
+
     add_custom_command(OUTPUT ${FULL_OUT_LLVMIR_FILE}
       COMMAND ${LLVMIR_COMPILER}
       ARGS ${CMD_ARGS} -c ${INFILE} -o ${FULL_OUT_LLVMIR_FILE}
       DEPENDS ${INFILE}
       IMPLICIT_DEPENDS ${LINKER_LANGUAGE} ${INFILE}
-      COMMENT "Building LLVM bitcode ${OUT_LLVMIR_FILE}"
+      COMMENT "Generating LLVM bitcode ${OUT_LLVMIR_FILE}"
       VERBATIM)
 
     list(APPEND OUT_LLVMIR_FILES ${OUT_LLVMIR_FILE})
@@ -150,7 +200,7 @@ function(attach_llvmir_opt_pass_target OUT_TRGT IN_TRGT)
       COMMAND ${LLVMIR_OPT}
       ARGS ${ARGN} ${INFILE} -o ${FULL_OUT_LLVMIR_FILE}
       DEPENDS ${INFILE}
-      COMMENT "Building LLVM bitcode ${OUT_LLVMIR_FILE}"
+      COMMENT "Generating LLVM bitcode ${OUT_LLVMIR_FILE}"
       VERBATIM)
 
     list(APPEND OUT_LLVMIR_FILES ${OUT_LLVMIR_FILE})
