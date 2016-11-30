@@ -51,6 +51,7 @@ pushd llvm/tools
 git clone ${REPO}/clang.git
 git clone ${REPO}/lldb.git 
 git clone ${REPO}/polly.git
+git clone ${REPO}/lld.git
 popd
 
 pushd llvm/tools/clang/tools/
