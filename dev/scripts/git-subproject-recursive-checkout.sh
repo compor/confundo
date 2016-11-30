@@ -2,27 +2,39 @@
 
 # set configuration vars
 
-CMD_OPTS=":b:h"
+CMD_OPTS=":d:b:h"
+SEARCH_DIR=$(pwd)
 BRANCH="master"
+
+SUFFIX='.git'
 
 
 read -r -d '' HELP_STR <<'EOF'
-Usage: scriptname -h -b [branch]
+Usage: scriptname -h -r [repo URL]
 
 Output Options:
-  -b [branch]       Use this 'branch' name, otherwise 'master'.
+  -d [dir]          Use this directory, otherwise the PWD.
+  -b [branch tag]   Use this as checkout tag, otherwise default value.
   -h                This help screen.
 EOF
 
 
 # parse command-line options
 
+OPT_D_USED=false
 OPT_B_USED=false
 
 while getopts "${CMD_OPTS}" opt; do
   case $opt in
+    d)
+      ${OPT_D_USED} && echo "Option: -$opt used more than once." >&2 && exit 1
+      echo ${OPTARG}
+      SEARCH_DIR=${OPTARG}
+      OPT_D_USED=true
+      ;;
     b)
       ${OPT_B_USED} && echo "Option: -$opt used more than once." >&2 && exit 1
+      echo ${OPTARG}
       BRANCH=${OPTARG}
       OPT_B_USED=true
       ;;
@@ -44,18 +56,16 @@ done
 
 #
 
-GIT_PROJECTS=( $(find . -iname ".git" | xargs) )
+REPO_DIRS=$(find ${SEARCH_DIR} -name ${SUFFIX} -a -type d)
 
-((nelems=${#GIT_PROJECTS[@]}))
+for d in ${REPO_DIRS}; do 
+  echo "status: working with git subproject: ${d}"
 
-for ((i = 0; i < nelems; i++)); do
-  subproject=$(dirname ${GIT_PROJECTS[i]})
-  echo "status: working with git subproject: ${subproject}"
-
-  pushd ${subproject}
-  git checkout $BRANCH 
+  pushd ${d%${SUFFIX}}
+    git checkout ${BRANCH}
   popd
-done
+done 
+
 
 exit 0
 
